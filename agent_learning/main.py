@@ -1,17 +1,19 @@
 # main.py
+"""示例入口：初始化 LLM 客户端、注入 Agent 并调用 Agent 执行任务。
+仅作为演示脚本使用。"""
 import asyncio
 from agent import run_agent, set_client
 from tools import get_current_weather, send_email
 from zhipuai import ZhipuAI
 
-# 你的 API Key（你已经填好了）
+# 初始化 LLM 客户端（示例中已填入 API Key）
 api_key = "127d3f4f9b254843a85904808c3bc36b.gzRgQ3fYA4yTCvlQ"
 client = ZhipuAI(api_key=api_key)
 
-# 重点：把 client 传给 agent.py
+# 把 client 注入到 agent 模块中，供 agent.run_agent 使用
 set_client(client)
 
-# 定义工具（你已经写好了）
+# 工具列表：供 Agent 在思考过程中调用
 TOOLS = [
     {
         "name": "get_current_weather",

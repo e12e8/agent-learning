@@ -2,7 +2,11 @@
 from zhipuai import ZhipuAI
 import json
 
-# 全局 client，由 main.py 通过 set_client 注入
+"""简要：实现基于工具调用的 ReAct 风格 Agent 主逻辑。
+依赖外部 LLM 客户端（由 main.py 通过 `set_client` 注入），
+负责解析模型输出、调用工具并返回最终结论。"""
+
+# 全局 client，由 `main.py` 通过 `set_client` 注入
 client = None
 
 def set_client(zhipu_client: ZhipuAI):
@@ -25,7 +29,7 @@ async def run_agent(task: str, tools=None, max_steps: int = 15) -> str:
         for tool in tools:
             available_tools[tool["name"]] = tool["function"]
 
-    # 系统提示词（关键！让 Agent 严格遵守格式并尽快结束）
+    # 系统提示词（关键：规定 Agent 回复格式，便于解析）
     system_prompt = f"""
 你是一个高效的智能助手，能通过思考和调用工具快速完成任务。
 请严格按照以下格式回复（只能用这个格式，禁止多余文字或解释）：
@@ -44,7 +48,7 @@ Final Answer: 最终结论（用自然、完整的中文句子）
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": task}
     ]
-
+    # 与 LLM 循环交互，直到产生 Final Answer 或达到最大步数
     for step in range(max_steps):
         # 调用大模型
         response = client.chat.completions.create(
