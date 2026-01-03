@@ -7,6 +7,18 @@ client = None
 
 
 def set_client(zhipu_client: ZhipuAI):
+    """
+    设置全局的智谱AI客户端实例
+    
+    该函数将传入的ZhipuAI客户端实例赋值给全局变量client，
+    以便在其他函数中可以使用该客户端进行AI相关的操作。
+    
+    参数:
+        zhipu_client (ZhipuAI): ZhipuAI客户端实例，用于与智谱AI服务进行交互
+    
+    返回值:
+        无返回值
+    """
     global client
     client = zhipu_client
 
