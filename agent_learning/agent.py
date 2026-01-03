@@ -1,5 +1,6 @@
 from llm import call_llm
-def run_agent():
-    print("agent is thinking...")
-    respponse = call_llm("你好，请介绍你自己")
-    print(respponse)
+
+async def run_agent(name: str):
+    print(f"{name} 开始思考了")
+    response = await call_llm(f"你好，我是{name} ")
+    print(f"{name}回复完成：{response}")
