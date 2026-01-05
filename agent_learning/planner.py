@@ -1,16 +1,11 @@
 # planner.py
 
-def plan(task: str) -> list[str]:
+def plan_task(task: str) -> list[str]:
     """
-    把一个任务拆解成多个步骤
+    将用户任务拆分为可执行步骤
     """
-    print("Planner 正在拆解任务...")
-
-    steps = [
-        "分析任务目标",
-        "查找相关信息",
-        "整理答案结构",
-        "生成最终结果"
+    return [
+        "理解问题的通用背景",
+        "分析相关技术原理",
+        "结合工程或项目实践进行说明"
     ]
-
-    return steps
