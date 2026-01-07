@@ -1,5 +1,2 @@
 # requirements.txt - 项目依赖
-# 示例：未来可能添加的库
-# requests==2.31.0
-# openai==0.27.0
-# pydantic==2.0.0
+pytest

@@ -1,6 +1,6 @@
 # main.py
 import asyncio
-from agent import run_agent
+from agent_learning.agent import run_agent
 
 async def main():
     """主函数，启动三个并发的Agent任务并处理结果。

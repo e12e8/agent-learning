@@ -7,16 +7,17 @@ async def search_tech_knowledge(query: str):
     return {
         "status": "ok",
         "type": "tech",
-        "content": "技术相关内容"
+        "confidence": 0.8,
+        "content": "技术相关内容（已修改）"
     }
 
 async def search_general_knowledge(query: str):
     await asyncio.sleep(2)
     return {
-    "status": "ok",
-    "type": "general",
-    "confidence": 0.4,
-    "content": "一些通用说明"
+        "status": "ok",
+        "type": "general",
+        "confidence": 0.4,
+        "content": "一些通用说明"
 }
 
 async def search_project_knowledge(query: str):
@@ -24,5 +25,6 @@ async def search_project_knowledge(query: str):
     return {
         "status": "ok",
         "type": "project",
+        "confidence": 0.7,
         "content": "项目实践经验"
     }

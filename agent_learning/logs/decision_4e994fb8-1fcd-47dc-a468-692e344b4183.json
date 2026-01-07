@@ -1,0 +1,109 @@
+[
+  {
+    "time": 1767788796.5460322,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "理解问题的通用背景",
+    "candidate_tools": [
+      "general"
+    ]
+  },
+  {
+    "time": 1767788796.5460362,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "理解问题的通用背景",
+    "tool": "general",
+    "action": "cache_hit"
+  },
+  {
+    "time": 1767788796.546041,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "理解问题的通用背景",
+    "action": "use_cache_best",
+    "best_confidence": 0.9
+  },
+  {
+    "time": 1767788796.5460427,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "理解问题的通用背景",
+    "action": "step_complete",
+    "duration": 9.822845458984375e-05
+  },
+  {
+    "time": 1767788796.5460956,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "分析相关技术原理",
+    "candidate_tools": [
+      "tech",
+      "general"
+    ]
+  },
+  {
+    "time": 1767788798.5526338,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "分析相关技术原理",
+    "tool": "tech",
+    "status": "ok",
+    "confidence": 0.8
+  },
+  {
+    "time": 1767788798.5526469,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "分析相关技术原理",
+    "tool": "general",
+    "status": "ok",
+    "confidence": 0.4
+  },
+  {
+    "time": 1767788798.5526507,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "分析相关技术原理",
+    "action": "choose_best",
+    "best_confidence": 0.8
+  },
+  {
+    "time": 1767788798.5526547,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "分析相关技术原理",
+    "action": "step_complete",
+    "duration": 2.006610631942749
+  },
+  {
+    "time": 1767788798.552832,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "结合工程或项目实践进行说明",
+    "candidate_tools": [
+      "project",
+      "tech"
+    ]
+  },
+  {
+    "time": 1767788800.5629444,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "结合工程或项目实践进行说明",
+    "tool": "project",
+    "status": "ok",
+    "confidence": 0.7
+  },
+  {
+    "time": 1767788800.562958,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "结合工程或项目实践进行说明",
+    "tool": "tech",
+    "status": "ok",
+    "confidence": 0.8
+  },
+  {
+    "time": 1767788800.5629623,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "结合工程或项目实践进行说明",
+    "action": "choose_best",
+    "best_confidence": 0.8
+  },
+  {
+    "time": 1767788800.5629675,
+    "trace_id": "4e994fb8-1fcd-47dc-a468-692e344b4183",
+    "step": "结合工程或项目实践进行说明",
+    "action": "step_complete",
+    "duration": 2.0103113651275635
+  }
+]
