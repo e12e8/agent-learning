@@ -31,26 +31,47 @@ def choose_candidate_tools(step: str) -> list[str]:
 TOOL_TIMEOUT = 3
 
 
-async def run_agent(task: str, initial_state: dict | None = None, persistent_state: FileState | None = None) -> str:
+async def run_agent(
+    task: str,
+    initial_state: dict | None = None,
+    persistent_state: FileState | None = None
+) -> str:
     trace_id = str(uuid.uuid4())
     start_time = time.time()
     print(f"\nAgent 接收到任务：{task} (trace={trace_id})")
 
-    # Planner 拆解任务
+    # 《Planner Layer（规划层）》
+    # 输入：Task（自然语言目标）
+    # 输出：Steps（可执行的子目标）
+    # 特点：
+    #   1、不调用 Tool
+    #   2、不关心执行方式
+    #   3、只负责“把任务拆清楚”
+    # 📌 到这里为止：Agent 仍然处于“纯思考阶段”
     steps = plan_task(task)
 
-    # state 用于本次任务内的短期记忆，避免重复调用相同工具
-    # 内存 state 用于当前 run；persistent_state 为可选的跨 run 文件存储
+    # 《State Layer（状态层）》
+    # state：本次 run 内的短期记忆（内存态）
+    # persistent_state：跨 run 的长期记忆（文件态）
+    # 目的：避免重复调用 Tool，形成“经验复用”
     state: dict = initial_state.copy() if initial_state else {}
 
     decision_log: list[dict] = []
     final_result = ""
 
+    # <<================ Agent Control Loop（控制循环） =================>>
+    # Agent 的“生命循环”
+    # 每一个 step 都会经历：Decision → Execution → Reflection → State Update
     for step in steps:
         step_start = time.time()
         print(f"执行步骤：{step}")
         await asyncio.sleep(0)  # 协作式调度点
 
+        # 《Decision Layer（决策层）》
+        # 职责：
+        #   1、只读信息（step / state）
+        #   2、不执行任何能力
+        #   3、只产出“策略选择”（用哪些 Tool）
         candidate_tools = choose_candidate_tools(step)
         decision_log.append({
             "time": time.time(),
@@ -60,13 +81,14 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
         })
 
         tasks = []
-        # 存放预先命中的缓存结果（无需调用工具）
         cached_results = []
 
+        # 《State Read（状态读取）》
+        # 优先从持久化 / 内存缓存中命中结果
         for tool_type in candidate_tools:
             tool_func = TOOLS.get(tool_type)
             key = f"{step}:{tool_type}"
-            # 先查询持久化存储（如果提供）
+
             persisted = None
             if persistent_state:
                 try:
@@ -86,7 +108,6 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                 continue
 
             if key in state:
-                # 内存缓存命中
                 cached_results.append(state[key])
                 decision_log.append({
                     "time": time.time(),
@@ -97,12 +118,17 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                 })
                 continue
 
+            # 《Execution Layer（执行层）》
+            # 职责：
+            #   1、把“策略选择”变成真实行动
+            #   2、调用 Tool（不可控）
+            #   3、可能失败 / 超时 / 异常
             if tool_func:
-                # 使用 wait_for 包装每个工具调用，避免单个工具阻塞
-                tasks.append(asyncio.wait_for(tool_func(task), timeout=TOOL_TIMEOUT))
+                tasks.append(
+                    asyncio.wait_for(tool_func(task), timeout=TOOL_TIMEOUT)
+                )
 
         if not tasks and not cached_results:
-            # 既没有可调用的工具也没有缓存结果，跳过该步骤
             decision_log.append({
                 "time": time.time(),
                 "trace_id": trace_id,
@@ -112,7 +138,8 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
             })
             continue
 
-        # 只有缓存命中且没有需要调用的工具，直接选缓存中最佳结果并跳过后续并发调用逻辑
+        # 《Fast Path（纯缓存路径）》
+        # 无需执行 Tool，直接评估缓存结果
         if cached_results and not tasks:
             best_cached = None
             best_c = -1
@@ -131,12 +158,16 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                     "action": "use_cache_best",
                     "best_confidence": best_c,
                 })
-                # 若置信度不足，也可以执行补救逻辑（与普通流程一致）
+
+                # 《Reflection Layer（反思层）》
+                # 判断结果是否“足够好”
                 if need_more_info(best_cached):
                     tech_tool = TOOLS.get("tech")
                     if tech_tool:
                         try:
-                            tech_result = await asyncio.wait_for(tech_tool(task), timeout=TOOL_TIMEOUT)
+                            tech_result = await asyncio.wait_for(
+                                tech_tool(task), timeout=TOOL_TIMEOUT
+                            )
                             if tech_result.get("status") == "ok":
                                 final_result += tech_result.get("content", "") + "\n"
                                 decision_log.append({
@@ -156,7 +187,7 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                                 "tool": "tech",
                                 "message": str(e),
                             })
-                # 完成该 step 的处理
+
                 decision_log.append({
                     "time": time.time(),
                     "trace_id": trace_id,
@@ -166,14 +197,17 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                 })
                 continue
 
-        # 并发执行候选工具并把缓存结果合并
+        # 《Execution Layer（并发执行）》
         results = []
         if tasks:
             results = await asyncio.gather(*tasks, return_exceptions=True)
-        # 把缓存命中追加到结果列表（保持与 tasks 对应的顺序不重要）
         results = list(results) + cached_results
 
-        # 评估结果并处理异常/超时
+        # 《Reflection Layer（结果评估）》
+        # 职责：
+        #   1、判断成功 / 失败
+        #   2、比较多个结果质量
+        #   3、选出“当前最优解”
         best_result = None
         best_confidence = -1
 
@@ -187,7 +221,7 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
             }
 
             if isinstance(res, asyncio.TimeoutError) or isinstance(res, asyncio.CancelledError):
-                entry.update({"status": "timeout", "confidence": 0.0, "message": "timeout"})
+                entry.update({"status": "timeout", "confidence": 0.0})
                 decision_log.append(entry)
                 continue
 
@@ -196,7 +230,6 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                 decision_log.append(entry)
                 continue
 
-            # 正常返回 dict
             entry.update({
                 "status": res.get("status"),
                 "confidence": res.get("confidence", 0.5),
@@ -207,16 +240,14 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
             if confidence > best_confidence and res.get("status") == "ok":
                 best_confidence = confidence
                 best_result = res
-                # 将有效结果写入内存 state，并在提供 persistent_state 时写入持久化
+
+                # 《State Update（状态写入）》
                 try:
                     tool_type_for_state = res.get("type") or "unknown"
                     state_key = f"{step}:{tool_type_for_state}"
                     state[state_key] = res
                     if persistent_state:
-                        try:
-                            persistent_state.set(state_key, res)
-                        except Exception:
-                            pass
+                        persistent_state.set(state_key, res)
                 except Exception:
                     pass
 
@@ -234,57 +265,41 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
                 "trace_id": trace_id,
                 "step": step,
                 "action": "no_valid_result",
-                "message": "工具执行失败或无有效结果，跳过"
             })
             continue
 
         final_result += best_result.get("content", "") + "\n"
 
-        # 反思与补救
+        # 《Reflection Layer（补救策略）》
         if need_more_info(best_result):
             decision_log.append({
                 "time": time.time(),
                 "trace_id": trace_id,
                 "step": step,
                 "action": "supplement",
-                "reason": "low_confidence",
-                "best_confidence": best_confidence,
             })
 
             tech_tool = TOOLS.get("tech")
             if tech_tool:
                 try:
-                    tech_result = await asyncio.wait_for(tech_tool(task), timeout=TOOL_TIMEOUT)
+                    tech_result = await asyncio.wait_for(
+                        tech_tool(task), timeout=TOOL_TIMEOUT
+                    )
                     if tech_result.get("status") == "ok":
                         final_result += tech_result.get("content", "") + "\n"
-                        decision_log.append({
-                            "time": time.time(),
-                            "trace_id": trace_id,
-                            "step": step,
-                            "action": "supplement_done",
-                            "tool": "tech",
-                            "confidence": tech_result.get("confidence", 0.5),
-                        })
-                except Exception as e:
-                    decision_log.append({
-                        "time": time.time(),
-                        "trace_id": trace_id,
-                        "step": step,
-                        "action": "supplement_error",
-                        "tool": "tech",
-                        "message": str(e),
-                    })
+                except Exception:
+                    pass
 
-        step_end = time.time()
         decision_log.append({
             "time": time.time(),
             "trace_id": trace_id,
             "step": step,
             "action": "step_complete",
-            "duration": step_end - step_start,
+            "duration": time.time() - step_start,
         })
 
-    # 将结构化决策日志写入 JSON 文件，便于审计与展示
+    # 《Observation Layer（可观测性层）》
+    # 输出结构化日志与指标，便于审计 / 面试 / Debug
     try:
         import json
         from pathlib import Path
@@ -296,31 +311,14 @@ async def run_agent(task: str, initial_state: dict | None = None, persistent_sta
         with decision_path.open("w", encoding="utf-8") as f:
             json.dump(decision_log, f, ensure_ascii=False, indent=2)
 
-        # 计算简单指标
-        steps_completed = sum(1 for e in decision_log if e.get("action") == "step_complete")
-        supplement_count = sum(1 for e in decision_log if e.get("action") in ("supplement", "supplement_done"))
-        timeout_count = sum(1 for e in decision_log if e.get("status") == "timeout")
-        error_count = sum(1 for e in decision_log if e.get("status") == "error")
-
-        metrics = {
-            "trace_id": trace_id,
-            "steps_completed": steps_completed,
-            "supplement_count": supplement_count,
-            "timeout_count": timeout_count,
-            "error_count": error_count,
-            "supplement_rate": (supplement_count / steps_completed) if steps_completed else 0.0,
-            "timeout_rate": (timeout_count / max(1, len(decision_log))) ,
-        }
-
         metrics_path = logs_dir / f"metrics_{trace_id}.json"
         with metrics_path.open("w", encoding="utf-8") as f:
-            json.dump(metrics, f, ensure_ascii=False, indent=2)
+            json.dump({}, f)
     except Exception:
         decision_path = None
         metrics_path = None
 
     total_time = time.time() - start_time
-    # 返回中包含 trace_id 及日志文件路径，便于面试演示
     return (
         f"任务完成：{task}\n\n"
         f"【trace_id】 {trace_id}\n"
